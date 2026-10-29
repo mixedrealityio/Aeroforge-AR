@@ -1,0 +1,422 @@
+{
+  "entities": {
+    "UserPublicProfile": {
+      "title": "UserPublicProfile",
+      "description": "Authenticated aerospace manufacturing operator public profile (non-PII).",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the operator."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Operator display name from Google Account."
+        },
+        "photoUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500,
+          "description": "Avatar photo URL from Google Account."
+        },
+        "operatorBadge": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Assigned shop-floor operator badge identifier."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-modified timestamp."
+        }
+      },
+      "required": ["uid", "displayName", "photoUrl", "operatorBadge", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated operator PII record containing verified Google Account email.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner Firebase Auth UID."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160,
+          "description": "Verified operator email address."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-modified timestamp."
+        }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "TraceabilityRun": {
+      "title": "TraceabilityRun",
+      "description": "OmniStep aerospace assembly and NDT inspection traceability session log.",
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 96,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique traceability run document ID."
+        },
+        "operatorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the operator who executed the procedure."
+        },
+        "operatorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Display name of the operator for audit log readout."
+        },
+        "scenarioId": {
+          "type": "string",
+          "enum": ["panel_buildup", "turbofan_core"],
+          "minLength": 5,
+          "maxLength": 32,
+          "description": "Manufacturing procedure identifier."
+        },
+        "workOrderId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Aerospace shop-floor work order code."
+        },
+        "installedCount": {
+          "type": "integer",
+          "description": "Number of stages mounted (0..6)."
+        },
+        "compliantCount": {
+          "type": "integer",
+          "description": "Number of QC checkpoints verified compliant (0..6)."
+        },
+        "activeDefectCount": {
+          "type": "integer",
+          "description": "Number of active non-conformances (0..6)."
+        },
+        "reworkedCount": {
+          "type": "integer",
+          "description": "Number of checkpoints calibrated/reworked (0..6)."
+        },
+        "firstPassYieldPercent": {
+          "type": "integer",
+          "description": "First-pass inspection yield percentage (0..100)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["in_progress", "certified"],
+          "minLength": 9,
+          "maxLength": 24,
+          "description": "Lifecycle state; certified is terminal and immutable."
+        },
+        "certificateCode": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64,
+          "description": "Issued EASA Form 1 / FAA 8130-3 release code when certified."
+        },
+        "completedSteps": {
+          "type": "array",
+          "description": "Bounded list (max 6) of mounted part/step codes."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "runId",
+        "operatorUid",
+        "operatorName",
+        "scenarioId",
+        "workOrderId",
+        "installedCount",
+        "compliantCount",
+        "activeDefectCount",
+        "reworkedCount",
+        "firstPassYieldPercent",
+        "status",
+        "certificateCode",
+        "completedSteps",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AssemblyWorkflowStep": {
+      "title": "AssemblyWorkflowStep",
+      "description": "Managed aerospace AR assembly workflow step specification with torque tolerances and 3D model entity highlight IDs.",
+      "type": "object",
+      "properties": {
+        "stepDocId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 96,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Deterministic workflow step document ID."
+        },
+        "operatorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner Firebase Auth UID."
+        },
+        "scenarioId": {
+          "type": "string",
+          "enum": ["panel_buildup", "turbofan_core"],
+          "minLength": 5,
+          "maxLength": 32,
+          "description": "Target aerospace assembly procedure identifier."
+        },
+        "stepNumber": {
+          "type": "integer",
+          "description": "Sequential assembly stage index (1..6)."
+        },
+        "canonicalCode": {
+          "type": "string",
+          "enum": ["STEP-01", "STEP-02", "STEP-03", "STEP-04", "STEP-05", "STEP-06"],
+          "minLength": 7,
+          "maxLength": 7,
+          "description": "Canonical step code."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120,
+          "description": "Step display title."
+        },
+        "partNumber": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Aerospace part reference code."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 500,
+          "description": "Step-by-step operator assembly guidance text."
+        },
+        "warningText": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 280,
+          "description": "Poka-Yoke shop-floor caution banner text."
+        },
+        "requiredTorqueNm": {
+          "type": "number",
+          "description": "Target nominal fastener torque setting in N·m (0..2000; 0 for non-torqued steps)."
+        },
+        "torqueMinNm": {
+          "type": "number",
+          "description": "Minimum allowable fastener torque in N·m (0..2000, <= requiredTorqueNm)."
+        },
+        "torqueMaxNm": {
+          "type": "number",
+          "description": "Maximum allowable fastener torque in N·m (0..2000, >= requiredTorqueNm)."
+        },
+        "modelEntityIds": {
+          "type": "array",
+          "description": "Bounded list (1..6) of 3D model entity IDs to highlight in the AR view."
+        },
+        "highlightColorHex": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 7,
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "Hex color tint for 3D AR entity highlighting."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-modified timestamp."
+        }
+      },
+      "required": [
+        "stepDocId",
+        "operatorUid",
+        "scenarioId",
+        "stepNumber",
+        "canonicalCode",
+        "title",
+        "partNumber",
+        "description",
+        "warningText",
+        "requiredTorqueNm",
+        "torqueMinNm",
+        "torqueMaxNm",
+        "modelEntityIds",
+        "highlightColorHex",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DimeoSupervisionRun": {
+      "title": "DimeoSupervisionRun",
+      "description": "Innoteo Dimeo Android XR field execution supervision record tracking QCM outcomes, step confirmations, AR photo/comment counts, and nominative vs shared-station mode.",
+      "type": "object",
+      "properties": {
+        "dimeoRunId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 96,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Deterministic Dimeo supervision run document ID."
+        },
+        "operatorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner Firebase Auth UID."
+        },
+        "operatorLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Effective operator display label or shared workstation shift badge."
+        },
+        "accountMode": {
+          "type": "string",
+          "enum": ["nominative", "shared_station"],
+          "minLength": 10,
+          "maxLength": 16,
+          "description": "Dimeo access mode: nominative account vs shared workstation."
+        },
+        "language": {
+          "type": "string",
+          "enum": ["en", "fr", "es"],
+          "minLength": 2,
+          "maxLength": 2,
+          "description": "Active localized procedure language."
+        },
+        "scenarioId": {
+          "type": "string",
+          "enum": ["panel_buildup", "turbofan_core"],
+          "minLength": 5,
+          "maxLength": 32,
+          "description": "Base manufacturing scenario identifier."
+        },
+        "moduleTitle": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120,
+          "description": "Executed Dimeo module title (standard, field-recorded, or AI-structured)."
+        },
+        "validatedStepsCount": {
+          "type": "integer",
+          "description": "Number of Dimeo steps confirmed (0..6)."
+        },
+        "qcmAnsweredCount": {
+          "type": "integer",
+          "description": "Number of QCM branching checkpoints answered (0..6)."
+        },
+        "photosCount": {
+          "type": "integer",
+          "description": "Number of 3D AR verification photos captured locally (0..12)."
+        },
+        "commentsCount": {
+          "type": "integer",
+          "description": "Number of operator field comments logged (0..24)."
+        },
+        "arEnabled": {
+          "type": "boolean",
+          "description": "Whether immersive 3D AR visual indicators were active."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-modified timestamp."
+        }
+      },
+      "required": [
+        "dimeoRunId",
+        "operatorUid",
+        "operatorLabel",
+        "accountMode",
+        "language",
+        "scenarioId",
+        "moduleTitle",
+        "validatedStepsCount",
+        "qcmAnsweredCount",
+        "photosCount",
+        "commentsCount",
+        "arEnabled",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserPublicProfile",
+      "description": "Public operator metadata keyed by Firebase Auth UID."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": "UserPrivateInfo",
+      "description": "PII-isolated private subcollection holding verified Google email."
+    },
+    "/traceabilityRuns/{runId}": {
+      "schema": "TraceabilityRun",
+      "description": "Operator-owned OmniStep procedure validation and QC traceability logs."
+    },
+    "/workflowSteps/{stepDocId}": {
+      "schema": "AssemblyWorkflowStep",
+      "description": "Operator-scoped managed assembly workflow step definitions with torque specs and 3D AR entity highlight IDs."
+    },
+    "/dimeoRuns/{dimeoRunId}": {
+      "schema": "DimeoSupervisionRun",
+      "description": "Operator-scoped Dimeo Android XR supervision telemetry logs for QCM outcomes, step validations, and field feedback counts."
+    }
+  }
+}

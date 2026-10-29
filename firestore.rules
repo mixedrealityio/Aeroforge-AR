@@ -1,0 +1,429 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Hardened Global Primitives
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // =========================================================================
+    // Validation Blueprints (Synchronized with firebase-blueprint.json)
+    // =========================================================================
+    function isValidUserPublicProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'photoUrl', 'operatorBadge', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'photoUrl', 'operatorBadge', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.uid == request.auth.uid
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && data.photoUrl is string && data.photoUrl.size() >= 0 && data.photoUrl.size() <= 500
+        && data.operatorBadge is string && data.operatorBadge.size() >= 3 && data.operatorBadge.size() <= 32 && data.operatorBadge.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.uid == request.auth.uid
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.email == request.auth.token.email
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTraceabilityRun(data) {
+      return data.keys().hasAll([
+          'runId',
+          'operatorUid',
+          'operatorName',
+          'scenarioId',
+          'workOrderId',
+          'installedCount',
+          'compliantCount',
+          'activeDefectCount',
+          'reworkedCount',
+          'firstPassYieldPercent',
+          'status',
+          'certificateCode',
+          'completedSteps',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'runId',
+          'operatorUid',
+          'operatorName',
+          'scenarioId',
+          'workOrderId',
+          'installedCount',
+          'compliantCount',
+          'activeDefectCount',
+          'reworkedCount',
+          'firstPassYieldPercent',
+          'status',
+          'certificateCode',
+          'completedSteps',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.runId is string && data.runId.size() >= 3 && data.runId.size() <= 96 && data.runId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.operatorUid is string && data.operatorUid.size() >= 1 && data.operatorUid.size() <= 128 && data.operatorUid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.operatorUid == request.auth.uid
+        && data.operatorName is string && data.operatorName.size() >= 1 && data.operatorName.size() <= 80
+        && data.scenarioId is string && data.scenarioId.size() >= 5 && data.scenarioId.size() <= 32
+        && (data.scenarioId == 'panel_buildup' || data.scenarioId == 'turbofan_core')
+        && data.workOrderId is string && data.workOrderId.size() >= 3 && data.workOrderId.size() <= 40 && data.workOrderId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.installedCount is int && data.installedCount >= 0 && data.installedCount <= 6
+        && data.compliantCount is int && data.compliantCount >= 0 && data.compliantCount <= 6
+        && data.activeDefectCount is int && data.activeDefectCount >= 0 && data.activeDefectCount <= 6
+        && data.reworkedCount is int && data.reworkedCount >= 0 && data.reworkedCount <= 6
+        && data.firstPassYieldPercent is int && data.firstPassYieldPercent >= 0 && data.firstPassYieldPercent <= 100
+        && data.status is string && data.status.size() >= 9 && data.status.size() <= 24
+        && (data.status == 'in_progress' || data.status == 'certified')
+        && data.certificateCode is string && data.certificateCode.size() >= 0 && data.certificateCode.size() <= 64
+        && (data.status != 'certified' || (data.installedCount == 6 && data.compliantCount == 6 && data.activeDefectCount == 0 && data.certificateCode.size() >= 6))
+        && data.completedSteps is list
+        && data.completedSteps.size() <= 6
+        && data.completedSteps.hasOnly(['STEP-01', 'STEP-02', 'STEP-03', 'STEP-04', 'STEP-05', 'STEP-06'])
+        && (data.completedSteps.size() == 0 || (data.completedSteps[0] is string && data.completedSteps[0].size() <= 16))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWorkflowStep(data) {
+      return data.keys().hasAll([
+          'stepDocId',
+          'operatorUid',
+          'scenarioId',
+          'stepNumber',
+          'canonicalCode',
+          'title',
+          'partNumber',
+          'description',
+          'warningText',
+          'requiredTorqueNm',
+          'torqueMinNm',
+          'torqueMaxNm',
+          'modelEntityIds',
+          'highlightColorHex',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'stepDocId',
+          'operatorUid',
+          'scenarioId',
+          'stepNumber',
+          'canonicalCode',
+          'title',
+          'partNumber',
+          'description',
+          'warningText',
+          'requiredTorqueNm',
+          'torqueMinNm',
+          'torqueMaxNm',
+          'modelEntityIds',
+          'highlightColorHex',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.stepDocId is string && data.stepDocId.size() >= 3 && data.stepDocId.size() <= 96 && data.stepDocId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.operatorUid is string && data.operatorUid.size() >= 1 && data.operatorUid.size() <= 128 && data.operatorUid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.operatorUid == request.auth.uid
+        && data.scenarioId is string && data.scenarioId.size() >= 5 && data.scenarioId.size() <= 32
+        && (data.scenarioId == 'panel_buildup' || data.scenarioId == 'turbofan_core')
+        && data.stepNumber is int && data.stepNumber >= 1 && data.stepNumber <= 6
+        && data.canonicalCode is string && data.canonicalCode.size() == 7
+        && (
+          (data.stepNumber == 1 && data.canonicalCode == 'STEP-01') ||
+          (data.stepNumber == 2 && data.canonicalCode == 'STEP-02') ||
+          (data.stepNumber == 3 && data.canonicalCode == 'STEP-03') ||
+          (data.stepNumber == 4 && data.canonicalCode == 'STEP-04') ||
+          (data.stepNumber == 5 && data.canonicalCode == 'STEP-05') ||
+          (data.stepNumber == 6 && data.canonicalCode == 'STEP-06')
+        )
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 120
+        && data.partNumber is string && data.partNumber.size() >= 2 && data.partNumber.size() <= 40 && data.partNumber.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.description is string && data.description.size() >= 5 && data.description.size() <= 500
+        && data.warningText is string && data.warningText.size() >= 0 && data.warningText.size() <= 280
+        && data.requiredTorqueNm is number && data.requiredTorqueNm >= 0 && data.requiredTorqueNm <= 2000
+        && data.torqueMinNm is number && data.torqueMinNm >= 0 && data.torqueMinNm <= 2000
+        && data.torqueMaxNm is number && data.torqueMaxNm >= 0 && data.torqueMaxNm <= 2000
+        && data.torqueMinNm <= data.requiredTorqueNm
+        && data.requiredTorqueNm <= data.torqueMaxNm
+        && data.modelEntityIds is list
+        && data.modelEntityIds.size() >= 1
+        && data.modelEntityIds.size() <= 6
+        && data.modelEntityIds[0] is string
+        && data.modelEntityIds[0].size() >= 3
+        && data.modelEntityIds[0].size() <= 48
+        && (
+          (
+            data.scenarioId == 'panel_buildup' &&
+            data.modelEntityIds.hasOnly([
+              'ENT-F6X-PINS-40MM',
+              'ENT-F6X-PIN-BASES',
+              'ENT-F6X-CLICK-BRACKETS',
+              'ENT-F6X-BRACKET-TABS',
+              'ENT-F6X-KAPTON-BLANKET',
+              'ENT-F6X-VAPOR-TAPES',
+              'ENT-F6X-HARNESS-BUNDLE',
+              'ENT-F6X-PCLAMPS',
+              'ENT-F6X-LOCKING-CAPS',
+              'ENT-F6X-SHEAR-TIES',
+              'ENT-F6X-DADO-PORT',
+              'ENT-F6X-DADO-STARBOARD'
+            ])
+          )
+          ||
+          (
+            data.scenarioId == 'turbofan_core' &&
+            data.modelEntityIds.hasOnly([
+              'ENT-TF90-LP-SHAFT',
+              'ENT-TF90-FWD-BEARING',
+              'ENT-TF90-AFT-BEARING',
+              'ENT-TF90-FAN-HUB',
+              'ENT-TF90-FAN-BLADES',
+              'ENT-TF90-SPINNER-LOCKNUT',
+              'ENT-TF90-HPC-BARREL',
+              'ENT-TF90-VSV-RING',
+              'ENT-TF90-HPC-BOLTS',
+              'ENT-TF90-COMBUSTOR-LINER',
+              'ENT-TF90-FUEL-MANIFOLD',
+              'ENT-TF90-FUEL-NOZZLES',
+              'ENT-TF90-HPT-BLISK',
+              'ENT-TF90-EXHAUST-CONE',
+              'ENT-TF90-HPT-BOLTS',
+              'ENT-TF90-COWL-PORT',
+              'ENT-TF90-COWL-STARBOARD',
+              'ENT-TF90-FADEC-UNIT'
+            ])
+          )
+        )
+        && data.highlightColorHex is string
+        && data.highlightColorHex.size() == 7
+        && data.highlightColorHex.matches('^#[0-9a-fA-F]{6}$')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // =========================================================================
+    // 1. Operator Public Profile: /users/{userId}
+    // =========================================================================
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserPublicProfile(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isOwner(userId)
+        && isValidUserPublicProfile(incoming())
+        && isValidId(userId)
+        && incoming().uid == existing().uid
+        && incoming().operatorBadge == existing().operatorBadge
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoUrl', 'updatedAt']);
+
+      allow delete: if false;
+
+      // =======================================================================
+      // 2. PII-Isolated Private Info Subcollection: /users/{userId}/private/{docId}
+      // =======================================================================
+      match /private/{docId} {
+        allow get: if isOwner(userId)
+          && isValidId(userId)
+          && docId == 'info'
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid;
+
+        allow list: if false;
+
+        allow create: if isOwner(userId)
+          && isValidId(userId)
+          && docId == 'info'
+          && isValidUserPrivateInfo(incoming())
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/users/$(userId))
+          && getAfter(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid;
+
+        allow update: if isOwner(userId)
+          && isValidUserPrivateInfo(incoming())
+          && isValidId(userId)
+          && docId == 'info'
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt'])
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid;
+
+        allow delete: if false;
+      }
+    }
+
+    // =========================================================================
+    // 3. OmniStep Traceability Runs: /traceabilityRuns/{runId}
+    // =========================================================================
+    match /traceabilityRuns/{runId} {
+      allow get: if isVerifiedUser()
+        && isValidId(runId)
+        && existing().operatorUid == request.auth.uid;
+
+      allow list: if isVerifiedUser()
+        && existing().operatorUid == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(runId)
+        && isValidTraceabilityRun(incoming())
+        && incoming().runId == runId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.uid == request.auth.uid;
+
+      allow update: if isVerifiedUser()
+        && isValidTraceabilityRun(incoming())
+        && isValidId(runId)
+        && existing().operatorUid == request.auth.uid
+        && existing().status != 'certified'
+        && incoming().runId == existing().runId
+        && incoming().operatorUid == existing().operatorUid
+        && incoming().scenarioId == existing().scenarioId
+        && incoming().workOrderId == existing().workOrderId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Progress Sync (in_progress -> in_progress)
+          (
+            incoming().status == 'in_progress'
+            && incoming().certificateCode == ''
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'operatorName',
+              'installedCount',
+              'compliantCount',
+              'activeDefectCount',
+              'reworkedCount',
+              'firstPassYieldPercent',
+              'completedSteps',
+              'updatedAt'
+            ])
+          )
+          ||
+          // Action 2: Terminal Airworthiness Certification (in_progress -> certified)
+          (
+            incoming().status == 'certified'
+            && incoming().installedCount == 6
+            && incoming().compliantCount == 6
+            && incoming().activeDefectCount == 0
+            && incoming().certificateCode.size() >= 6
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'operatorName',
+              'installedCount',
+              'compliantCount',
+              'activeDefectCount',
+              'reworkedCount',
+              'firstPassYieldPercent',
+              'status',
+              'certificateCode',
+              'completedSteps',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // =========================================================================
+    // 4. Managed Assembly Workflow Steps: /workflowSteps/{stepDocId}
+    // =========================================================================
+    match /workflowSteps/{stepDocId} {
+      allow get: if isVerifiedUser()
+        && isValidId(stepDocId)
+        && existing().operatorUid == request.auth.uid;
+
+      allow list: if isVerifiedUser()
+        && existing().operatorUid == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(stepDocId)
+        && isValidWorkflowStep(incoming())
+        && incoming().stepDocId == stepDocId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.uid == request.auth.uid;
+
+      allow update: if isVerifiedUser()
+        && isValidWorkflowStep(incoming())
+        && isValidId(stepDocId)
+        && existing().operatorUid == request.auth.uid
+        && incoming().stepDocId == existing().stepDocId
+        && incoming().operatorUid == existing().operatorUid
+        && incoming().scenarioId == existing().scenarioId
+        && incoming().stepNumber == existing().stepNumber
+        && incoming().canonicalCode == existing().canonicalCode
+        && incoming().partNumber == existing().partNumber
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Update Step Description, Torque Settings, & AR Highlight Entities
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title',
+            'description',
+            'warningText',
+            'requiredTorqueNm',
+            'torqueMinNm',
+            'torqueMaxNm',
+            'modelEntityIds',
+            'highlightColorHex',
+            'updatedAt'
+          ])
+          ||
+          // Action 2: Update AR Highlight Entities & Tint Only
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'modelEntityIds',
+            'highlightColorHex',
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if false;
+    }
+  }
+}
